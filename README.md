@@ -80,7 +80,29 @@ alter table documents disable row level security;
 python -m ingestion.ingest
 ```
 
-This crawls public FDA and WHO pages, chunks the text, generates embeddings via Amazon Titan, and stores everything in Supabase.
+This crawls the following public FDA and WHO pages, chunks the text, generates embeddings via Amazon Titan, and stores everything in Supabase.
+
+#### Sources Crawled
+
+**FDA:**
+| Document | URL |
+|----------|-----|
+| AI/ML in Software as a Medical Device | https://www.fda.gov/medical-devices/software-medical-device-samd/artificial-intelligence-and-machine-learning-software-medical-device |
+| AI/ML-Enabled Medical Devices | https://www.fda.gov/science-research/science-and-research-special-topics/artificial-intelligence-and-machine-learning-aiml-enabled-medical-devices |
+| Predetermined Change Control Plans for ML-Enabled Medical Devices | https://www.fda.gov/medical-devices/software-medical-device-samd/predetermined-change-control-plans-machine-learning-enabled-medical-devices |
+| Good Machine Learning Practice for Medical Device Development | https://www.fda.gov/medical-devices/software-medical-device-samd/good-machine-learning-practice-medical-device-development-guiding-principles |
+| Digital Health Criteria | https://www.fda.gov/medical-devices/digital-health-center-excellence/digital-health-criteria |
+
+**WHO:**
+| Document | URL |
+|----------|-----|
+| Ethics and Governance of AI for Health | https://iris.who.int/bitstream/handle/10665/341996/9789240029200-eng.pdf |
+| Regulatory Considerations on AI for Health | https://www.who.int/publications/i/item/9789240078871 |
+| WHO Guidance on Ethics and Governance for Large Multi-Modal Models | https://www.who.int/news/item/18-01-2024-who-releases-ai-ethics-and-governance-guidance-for-large-multi-modal-models |
+| WHO Considerations for Regulation of AI for Health | https://www.who.int/news/item/19-10-2023-who-outlines-considerations-for-regulation-of-artificial-intelligence-for-health |
+| Ethics and Governance of AI for Health - Guidance on LLMs | https://www.who.int/publications/i/item/9789240084759 |
+
+The source list is defined in `ingestion/sources.py` and can be extended.
 
 ## Usage
 
@@ -129,6 +151,20 @@ curl -X POST http://localhost:8000/ask \
   "safety_triggered": true
 }
 ```
+
+### Gradio Demo
+
+A chat-style web interface for interactive Q&A:
+
+```bash
+python demo.py
+```
+
+Opens at `http://localhost:7860` with:
+- Chat interface with conversation history
+- Sidebar with Top-K slider, inference time, and source count stats
+- Clickable example questions
+- Markdown-rendered answers with citation links
 
 ### MCP Server
 
