@@ -9,20 +9,22 @@ It exposes the same knowledge base through both **FastAPI** and an **MCP server*
 ## Architecture
 
 ```
-┌─────────────────┐     ┌──────────────┐     ┌───────────────┐
-│  FastAPI /ask   │────▶│   RAG Engine │────▶│ Anthropic API │
-└─────────────────┘     │              │     └───────────────┘
-                        │  - Safety    │
-┌─────────────────┐     │  - Embed     │     ┌───────────────┐
-│  MCP Server     │────▶│  - Search    │────▶│   Supabase    │
-│  (stdio)        │     │  - Cite      │     │   pgvector    │
-└─────────────────┘     └──────────────┘     └───────────────┘
-                              ▲
+┌─────────────────┐     ┌──────────────┐     ┌──────────────────┐
+│  FastAPI /ask   │────▶│   RAG Engine │────▶│  Claude Opus 4.6 │
+└─────────────────┘     │              │     │  (AWS Bedrock)   │
+                        │  - Safety    │     └──────────────────┘
+┌─────────────────┐     │  - Embed     │
+│  MCP Server     │────▶│  - Search    │     ┌──────────────────┐
+│  (stdio)        │     │  - Cite      │────▶│    Supabase      │
+└─────────────────┘     └──────────────┘     │    pgvector      │
+                              ▲              └──────────────────┘
                               │
-                   ┌──────────────────┐
-                   │ Ingestion Pipeline│
-                   │ (crawl/chunk/embed)│
-                   └──────────────────┘
+                   ┌──────────────────────┐
+                   │  Ingestion Pipeline  │
+                   │  crawl → chunk →     │
+                   │  embed (Titan) →     │
+                   │  store              │
+                   └──────────────────────┘
 ```
 
 ## Setup
@@ -30,9 +32,8 @@ It exposes the same knowledge base through both **FastAPI** and an **MCP server*
 ### 1. Prerequisites
 
 - Python 3.11+
+- AWS account with Bedrock access (Claude Opus 4.6 + Amazon Titan Embeddings)
 - Supabase project with pgvector enabled
-- Anthropic API key
-- Voyage AI API key (for embeddings)
 
 ### 2. Install Dependencies
 
@@ -46,12 +47,32 @@ pip install -r requirements.txt
 
 ```bash
 cp .env.example .env
-# Edit .env with your API keys and Supabase credentials
 ```
+
+Edit `.env` with your credentials:
+
+```env
+SUPABASE_URL=https://your-project.supabase.co
+SUPABASE_KEY=your-supabase-anon-key
+AWS_REGION=us-east-1
+AWS_ACCESS_KEY_ID=your-key
+AWS_SECRET_ACCESS_KEY=your-secret
+```
+
+AWS credentials can also come from `~/.aws/credentials` or IAM roles if you leave the key fields unset.
 
 ### 4. Set Up Database
 
-Run the SQL in `scripts/setup_db.sql` in your Supabase SQL editor to create the `documents` table and similarity search function.
+Run `scripts/setup_db.sql` in your Supabase SQL Editor. This creates:
+- The `documents` table with a `vector(1536)` column
+- An HNSW index for cosine similarity search
+- A `match_documents` RPC function
+
+Also disable RLS for the demo (or add appropriate policies):
+
+```sql
+alter table documents disable row level security;
+```
 
 ### 5. Ingest Documents
 
@@ -59,7 +80,7 @@ Run the SQL in `scripts/setup_db.sql` in your Supabase SQL editor to create the 
 python -m ingestion.ingest
 ```
 
-This crawls FDA and WHO pages, chunks the text, generates embeddings, and stores everything in Supabase.
+This crawls public FDA and WHO pages, chunks the text, generates embeddings via Amazon Titan, and stores everything in Supabase.
 
 ## Usage
 
@@ -81,7 +102,7 @@ Response:
 
 ```json
 {
-  "answer": "According to FDA guidance...[1][2]",
+  "answer": "Based on the provided sources, the FDA defines AI as...[1][2]",
   "citations": [
     {
       "source_title": "AI/ML-Enabled Medical Devices",
@@ -90,6 +111,22 @@ Response:
     }
   ],
   "safety_triggered": false
+}
+```
+
+Safety-triggered response (medical advice request):
+
+```bash
+curl -X POST http://localhost:8000/ask \
+  -H "Content-Type: application/json" \
+  -d '{"question": "Should this patient receive treatment A or treatment B?"}'
+```
+
+```json
+{
+  "answer": "I cannot provide medical advice or treatment recommendations...",
+  "citations": [],
+  "safety_triggered": true
 }
 ```
 
@@ -111,6 +148,11 @@ Connect from Claude Desktop by adding to `claude_desktop_config.json`:
 
 The server exposes one tool: `query_healthcare_ai_docs`
 
+**Tool schema:**
+- **Name:** `query_healthcare_ai_docs`
+- **Input:** `question` (string) — A question about healthcare AI regulation, responsible AI, or medical device software
+- **Output:** Cited answer text with appended source list
+
 ## Evaluation
 
 Run the evaluation suite (15 Q&A pairs testing citation quality, safety, keyword recall, and source accuracy):
@@ -119,17 +161,29 @@ Run the evaluation suite (15 Q&A pairs testing citation quality, safety, keyword
 python -m evals.run_eval
 ```
 
+Metrics reported:
+- **Safety accuracy** — correctly blocks medical advice, allows regulatory questions
+- **Citation presence** — answers include source citations
+- **Keyword recall** — answers contain expected domain terms
+- **Source org accuracy** — citations come from the expected organization (FDA/WHO)
+
 ## Tests
 
 ```bash
 pytest tests/ -v
 ```
 
+Covers:
+- `test_safety.py` — medical advice detection and safe pass-through of regulatory questions
+- `test_chunking.py` — text splitting respects token limits and preserves content
+- `test_citations.py` — citation extraction, deduplication, and edge cases
+
 ## Design Decisions
 
 | Decision | Choice | Rationale |
 |----------|--------|-----------|
-| Embedding model | Voyage `voyage-3-lite` (1024d) | Recommended for RAG, good cost/quality balance |
+| LLM | Claude Opus 4.6 via AWS Bedrock | High reasoning quality for cited answers |
+| Embeddings | Amazon Titan Text v1 (1536d) | No extra API key, same AWS credentials |
 | Chunk size | 800 tokens, 100 overlap | Preserves regulatory context without noise |
 | Top-k | 5 | Sufficient diversity for multi-faceted questions |
 | Citation format | Inline `[1]`, `[2]` with source list | Familiar, parseable, verifiable |
@@ -149,3 +203,4 @@ If deploying this to production, I would additionally:
 - Consider hybrid search (keyword + vector) for better recall
 - Add request tracing for debugging citation quality issues
 - Deploy the MCP server as an SSE endpoint for remote access
+- Use the Supabase RPC function for vector search at scale (current local similarity computation is fine for small document sets but won't scale)
