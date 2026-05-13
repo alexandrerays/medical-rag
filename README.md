@@ -166,6 +166,8 @@ Opens at `http://localhost:7860` with:
 - Clickable example questions
 - Markdown-rendered answers with citation links
 
+![](assets/demo.png)
+
 ### MCP Server
 
 Connect from Claude Desktop by adding to `claude_desktop_config.json`:
