@@ -1,4 +1,4 @@
-# MedReg MCP
+# Medical RAG
 
 A healthcare AI documentation agent that helps technical and product teams answer questions about responsible AI in regulated medical contexts, using cited retrieval over public FDA and WHO documentation.
 
