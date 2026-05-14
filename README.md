@@ -6,26 +6,55 @@ It exposes the same knowledge base through both **FastAPI** and an **MCP server*
 
 > **Note:** This is NOT a medical diagnosis or treatment tool. It is a regulatory and responsible AI documentation assistant.
 
-## Architecture
+## Folder Structure
 
 ```
-┌─────────────────┐     ┌──────────────┐     ┌──────────────────┐
-│  FastAPI /ask   │────▶│   RAG Engine │────▶│  Claude Opus 4.6 │
-└─────────────────┘     │              │     │  (AWS Bedrock)   │
-                        │  - Safety    │     └──────────────────┘
-┌─────────────────┐     │  - Embed     │
-│  MCP Server     │────▶│  - Search    │     ┌──────────────────┐
-│  (stdio)        │     │  - Cite      │────▶│    Supabase      │
-└─────────────────┘     └──────────────┘     │    pgvector      │
-                              ▲              └──────────────────┘
-                              │
-                   ┌──────────────────────┐
-                   │  Ingestion Pipeline  │
-                   │  crawl → chunk →     │
-                   │  embed (Titan) →     │
-                   │  store              │
-                   └──────────────────────┘
+medical-rag/
+├── app/
+│   ├── __init__.py
+│   ├── main.py            # FastAPI application
+│   ├── config.py          # Environment and settings
+│   ├── schemas.py         # Pydantic models
+│   ├── rag.py             # RAG pipeline orchestration
+│   ├── prompts.py         # LLM prompt templates
+│   ├── citations.py       # Citation extraction and formatting
+│   ├── safety.py          # Medical advice detection
+│   ├── vector_store.py    # Supabase pgvector operations
+│   ├── embeddings.py      # Amazon Titan embedding client
+│   └── llm.py            # Claude LLM client via Bedrock
+├── ingestion/
+│   ├── __init__.py
+│   ├── sources.py         # FDA/WHO URL definitions
+│   ├── crawler.py         # Web page fetcher and parser
+│   ├── chunker.py         # Text splitting logic
+│   └── ingest.py          # Ingestion pipeline entrypoint
+├── mcp_server/
+│   ├── __init__.py
+│   ├── server.py          # MCP server setup
+│   └── tools.py           # Tool definitions for Claude clients
+├── evals/
+│   ├── eval_questions.json # 15 Q&A evaluation pairs
+│   ├── run_eval.py        # Evaluation runner
+│   └── metrics.py         # Scoring functions
+├── scripts/
+│   ├── setup_db.sql       # Supabase table and index setup
+│   └── demo_queries.sh    # Example curl commands
+├── tests/
+│   ├── test_safety.py     # Safety filter tests
+│   ├── test_chunking.py   # Chunker tests
+│   └── test_citations.py  # Citation logic tests
+├── assets/
+│   ├── diagram.png        # Architecture diagram
+│   └── demo.png           # Gradio demo screenshot
+├── demo.py                # Gradio chat interface
+├── requirements.txt
+├── .env.example
+└── .gitignore
 ```
+
+## Architecture
+
+![](assets/diagram.png)
 
 ## Setup
 
