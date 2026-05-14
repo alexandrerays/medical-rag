@@ -51,8 +51,8 @@ EXAMPLE_QUESTIONS = [
     "How should teams think about model updates in AI/ML medical software?",
 ]
 
-with gr.Blocks(title="MedReg MCP") as demo:
-    gr.Markdown("# MedReg MCP — Healthcare AI Documentation Assistant")
+with gr.Blocks(title="Medical RAG") as demo:
+    gr.Markdown("# Medical RAG — Healthcare AI Documentation Assistant")
 
     with gr.Row():
         with gr.Column(scale=1):
