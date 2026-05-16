@@ -6,6 +6,10 @@ It exposes the same knowledge base through both **FastAPI** and an **MCP server*
 
 > **Note:** This is NOT a medical diagnosis or treatment tool. It is a regulatory and responsible AI documentation assistant.
 
+## Demo
+
+[Watch the demo on Loom](https://www.loom.com/share/d06f324022714527a00d1ff94a460e68)
+
 ## Folder Structure
 
 ```
